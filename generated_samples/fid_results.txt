@@ -1,0 +1,34 @@
+============================================================
+FID Evaluation Results
+============================================================
+Date: 2025-12-17 00:46:53
+Number of samples: 2000
+Image resolution: 32x32
+
+------------------------------------------------------------
+Comparison 1: C vs Real
+------------------------------------------------------------
+  Model:   CurriculumDDPM + NaiveUnet (Curriculum ON, Sparsity OFF)
+  Weight:  ddpm_celeba_c_32.pth
+  Path:    ./generated_samples/c
+  vs:      Real CelebA images
+  Path:    ./generated_samples/real
+  FID Score: 75.31929887879656
+
+------------------------------------------------------------
+Comparison 2: CS vs Real
+------------------------------------------------------------
+  Model:   CurriculumDDPM + SparseUnet (Curriculum ON, Sparsity ON)
+  Weight:  ddpm_celeba_cs_32.pth
+  Path:    ./generated_samples/cs
+  vs:      Real CelebA images
+  Path:    ./generated_samples/real
+  FID Score: 65.92688350540493
+
+============================================================
+Summary
+============================================================
+  C  (Curriculum ON, Sparsity OFF) FID: 75.31929887879656
+  CS (Curriculum ON, Sparsity ON)  FID: 65.92688350540493
+  Difference: 9.3924 (CS (Sparsity helps))
+============================================================

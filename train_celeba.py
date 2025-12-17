@@ -43,7 +43,7 @@ def train_celeba(
         transform=tf,
     )
 
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=20)
+    dataloader = DataLoader(dataset, batch_size=64, shuffle=True, num_workers=20)
     optim = torch.optim.Adam(ddpm.parameters(), lr=2e-5)
 
     for i in range(n_epoch):
