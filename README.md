@@ -4,144 +4,144 @@
 <img src="figure1_timeline.png" width="800">
 </p>
 
-本项目实现了 **Curriculum Learning** 和两种稀疏化方法用于改进扩散模型训练。
+This project implements **Curriculum Learning** and two sparsification methods to improve diffusion model training.
 
 ---
 
-## 目录
+## Table of Contents
 
-- [核心思想](#核心思想)
-- [理论基础](#理论基础)
-  - [为什么需要 Curriculum Learning](#为什么需要-curriculum-learning)
-  - [为什么需要 Sparsity Curriculum](#为什么需要-sparsity-curriculum)
-  - [两者的协同作用](#两者的协同作用)
-- [三种训练变体](#三种训练变体)
-- [架构设计](#架构设计)
+- [Core Idea](#core-idea)
+- [Theoretical Background](#theoretical-background)
+  - [Why Curriculum Learning](#why-curriculum-learning)
+  - [Why Sparsity Curriculum](#why-sparsity-curriculum)
+  - [Synergy Between Both](#synergy-between-both)
+- [Three Training Variants](#three-training-variants)
+- [Architecture Design](#architecture-design)
   - [SparseNaiveUnet (CS)](#sparsenaiveunet-cs)
   - [RegNaiveUnet (CR)](#regnaiveunet-cr)
   - [CurriculumDDPM](#curriculumddpm)
-- [实现细节](#实现细节)
+- [Implementation Details](#implementation-details)
   - [Channel-level Sparsity (CS)](#channel-level-sparsity-cs)
   - [Group L1 Regularization (CR)](#group-l1-regularization-cr)
   - [Gradient-based Regrowth](#gradient-based-regrowth)
-- [使用方法](#使用方法)
-- [配置说明](#配置说明)
-- [项目结构](#项目结构)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Project Structure](#project-structure)
 
 ---
 
-## 核心思想
+## Core Idea
 
-标准扩散模型训练对所有时间步一视同仁，但这忽略了一个重要结构：
+Standard diffusion model training treats all timesteps equally, but this ignores an important structure:
 
-| 时间步 | 噪声水平 | 可学习的内容 |
-|--------|----------|--------------|
-| t ≈ 1000 | 非常高 | 只有 **主要特征**（粗糙结构） |
-| t ≈ 500 | 中等 | 中等特征 |
-| t ≈ 1 | 非常低 | **精细细节**（次要特征） |
+| Timestep | Noise Level | Learnable Content |
+|----------|-------------|-------------------|
+| t ≈ 1000 | Very high | Only **major features** (coarse structure) |
+| t ≈ 500 | Medium | Medium features |
+| t ≈ 1 | Very low | **Fine details** (minor features) |
 
-**核心洞察**：在高噪声水平下，精细细节完全被噪声掩盖。在这些样本上训练会迫使网络首先关注主要特征。
+**Key Insight**: At high noise levels, fine details are completely masked by noise. Training on these samples forces the network to focus on major features first.
 
 ---
 
-## 理论基础
+## Theoretical Background
 
-### 为什么需要 Curriculum Learning
+### Why Curriculum Learning
 
-**核心思想**：从简单（主要特征）到困难（次要特征）逐步学习。
+**Core idea**: Learn progressively from easy (major features) to hard (minor features).
 
-考虑一个简化的数据生成模型：
+Consider a simplified data generation model:
 ```
 x = α₁·M₁·z₁ + α₂·M₂·z₂
 ```
-其中 `α₁ >> α₂`（M₁ 是主要特征，M₂ 是次要特征）。
+where `α₁ >> α₂` (M₁ is the major feature, M₂ is the minor feature).
 
-当我们添加噪声时：
+When we add noise:
 ```
 x_noisy = √(1-t)·x + √t·ε
 ```
 
-| 训练阶段 | 发生了什么 |
-|----------|------------|
-| **高噪声（t 大）** | 信号被严重掩盖 → 只有 **M₁** 可识别 |
-| **低噪声（t 小）** | 信号更清晰 → **M₂** 开始显现 |
+| Training Phase | What Happens |
+|----------------|--------------|
+| **High noise (large t)** | Signal heavily masked → Only **M₁** is identifiable |
+| **Low noise (small t)** | Signal clearer → **M₂** starts to emerge |
 
-**没有 Curriculum**：网络在所有噪声级别同时学习所有特征 → 混乱，特征分离效果差。
+**Without Curriculum**: Network learns all features at all noise levels simultaneously → Confusion, poor feature separation.
 
-**有 Curriculum**：
-1. 首先在高噪声样本上训练 → 掌握 M₁
-2. 然后扩展到低噪声样本 → 精细化 M₂
-3. 自然的从粗到细学习
+**With Curriculum**:
+1. First train on high-noise samples → Master M₁
+2. Then expand to low-noise samples → Refine M₂
+3. Natural coarse-to-fine learning
 
-### 为什么需要 Sparsity Curriculum
+### Why Sparsity Curriculum
 
-**问题**：即使有 Curriculum Learning，如果所有神经元/通道从一开始就活跃：
-
-```
-Stage 1（高噪声）：
-    所有 256 个 channels 都在更新 → 全部被 M₁ 吸引
-    ↓
-    Channels 被 M₁ "污染"
-    ↓
-Stage N（低噪声）：
-    这些被污染的 channels 难以转向学习 M₂
-    ↓
-    结果：M₂ 表示效果差
-```
-
-**解决方案 - Sparsity Curriculum**：
+**Problem**: Even with Curriculum Learning, if all neurons/channels are active from the start:
 
 ```
-Stage 1（高噪声，80% 稀疏）：
-    只有 51 个 channels 活跃 → 专门学习 M₁
-    其他 205 个 channels 保持干净（初始化状态）
+Stage 1 (high noise):
+    All 256 channels updating → All attracted to M₁
     ↓
-Stage 5（中等噪声，40% 稀疏）：
-    Regrow 102 个新 channels → 干净的 channels 学习新特征
+    Channels "contaminated" by M₁
     ↓
-Stage 10（低噪声，0% 稀疏）：
-    所有 256 个 channels 活跃
-    后期激活的 channels 直接学习 M₂，不受 M₁ 干扰
+Stage N (low noise):
+    These contaminated channels struggle to learn M₂
+    ↓
+    Result: Poor M₂ representation
 ```
 
-### 两者的协同作用
+**Solution - Sparsity Curriculum**:
 
-| 组件 | 控制 | 目的 |
-|------|------|------|
-| **Curriculum** | 数据难度（噪声：高 → 低） | 学**什么**（主要 → 次要特征） |
-| **Sparsity** | 模型容量（稀疏 → 稠密） | **谁**来学（为次要特征预留容量） |
+```
+Stage 1 (high noise, 80% sparse):
+    Only 51 channels active → Dedicated to learning M₁
+    Other 205 channels stay clean (initialized state)
+    ↓
+Stage 5 (medium noise, 40% sparse):
+    Regrow 102 new channels → Clean channels learn new features
+    ↓
+Stage 10 (low noise, 0% sparse):
+    All 256 channels active
+    Late-activated channels directly learn M₂, uncontaminated by M₁
+```
 
-**一句话总结**：Curriculum 控制学习顺序；Sparsity 为后期特征预留干净的容量。
+### Synergy Between Both
+
+| Component | Controls | Purpose |
+|-----------|----------|---------|
+| **Curriculum** | Data difficulty (noise: high → low) | **What** to learn (major → minor features) |
+| **Sparsity** | Model capacity (sparse → dense) | **Who** learns (reserve capacity for minor features) |
+
+**One-liner**: Curriculum controls learning order; Sparsity reserves clean capacity for later features.
 
 ---
 
-## 三种训练变体
+## Three Training Variants
 
-| Script | Curriculum | Sparsity | Method | 说明 |
-|--------|:----------:|:--------:|--------|------|
-| `train_celeba_c_32.py` | ✓ | ✗ | Curriculum only | 只有时间步 curriculum |
-| `train_celeba_cs_32.py` | ✓ | ✓ | Hard mask + regrowth | Bottleneck 硬掩码 |
-| `train_celeba_cr_32.py` | ✓ | ✓ | Group L1 regularization | 软稀疏正则化 |
+| Script | Curriculum | Sparsity | Method | Description |
+|--------|:----------:|:--------:|--------|-------------|
+| `train_celeba_c_32.py` | ✓ | ✗ | Curriculum only | Only timestep curriculum |
+| `train_celeba_cs_32.py` | ✓ | ✓ | Hard mask + regrowth | Bottleneck hard mask |
+| `train_celeba_cr_32.py` | ✓ | ✓ | Group L1 regularization | Soft sparsity regularization |
 
-### CS vs CR 对比
+### CS vs CR Comparison
 
-| 特性 | CS (硬掩码) | CR (Group L1) |
-|-----|------------|---------------|
-| 稀疏机制 | `channel_mask` 直接掩盖 | 正则化惩罚驱动 |
-| 稀疏位置 | 仅 bottleneck | 所有 Conv 层 |
-| 控制方式 | 显式 regrowth | λ 递减自动释放 |
-| 灵活性 | 离散 (0/1) | 连续 (软稀疏) |
+| Feature | CS (Hard Mask) | CR (Group L1) |
+|---------|----------------|---------------|
+| Sparsity mechanism | `channel_mask` directly masks | Regularization penalty drives sparsity |
+| Sparsity location | Bottleneck only | All Conv layers |
+| Control method | Explicit regrowth | λ decay auto-releases |
+| Flexibility | Discrete (0/1) | Continuous (soft sparsity) |
 
 ---
 
-## 架构设计
+## Architecture Design
 
 ### SparseNaiveUnet (CS)
 
-在 **bottleneck 处实现 channel-level sparsity** 的 UNet。
+UNet with **channel-level sparsity at the bottleneck**.
 
 ```
-原始 UNet 流程：
+Original UNet flow:
     x → init_conv → down1 → down2 → down3 → to_vec
                                               ↓
                                       thro (B, 256, 1, 1)  ← BOTTLENECK
@@ -150,78 +150,78 @@ Stage 10（低噪声，0% 稀疏）：
                                               ↓
                                       up0 → up1 → up2 → up3 → out
 
-加入 Sparsity：
+With Sparsity:
     thro = to_vec(down3)
-    thro = thro * channel_mask    ← 在这里应用 MASK
+    thro = thro * channel_mask    ← Apply MASK here
     thro = up0(thro + temb)
 ```
 
-**为什么选择 bottleneck？**
-- 所有信息必须通过这个瓶颈
-- Mask channels 直接限制模型容量
-- 类似于在 MLP 中 mask hidden neurons
+**Why bottleneck?**
+- All information must pass through this bottleneck
+- Masking channels directly limits model capacity
+- Similar to masking hidden neurons in MLP
 
 ### RegNaiveUnet (CR)
 
-对 **所有 Conv 层施加 Group L1 正则化** 的 UNet。
+UNet with **Group L1 regularization on all Conv layers**.
 
 ```python
-# Group L1 正则化形式：
-L_reg = λ · Σ_(所有Conv层) Σ_c ||W[c,:,:,:]||_2
+# Group L1 regularization form:
+L_reg = λ · Σ_(all Conv layers) Σ_c ||W[c,:,:,:]||_2
 
-# 其中：
+# Where:
 # - W shape: (out_channels, in_channels, kernel_h, kernel_w)
-# - 对每个 output channel 计算 L2 范数，然后求和
+# - Compute L2 norm for each output channel, then sum
 ```
 
-**总 Loss**：
+**Total Loss**:
 ```
 L_total = MSE(noise_pred, noise) + λ(stage) × Σ_c ||W[c,:,:,:]||_2
 ```
 
-**λ Schedule (Cosine)**：
+**λ Schedule (Cosine)**:
 ```
 λ(i) = λ_max × 0.5 × (1 + cos(π × i / (num_stages - 1)))
 
-Stage 1: λ = λ_max (强正则化)
-Stage 5: λ ≈ 0 (无正则化)
+Stage 1: λ = λ_max (strong regularization)
+Stage 5: λ ≈ 0 (no regularization)
 ```
 
 ### CurriculumDDPM
 
-支持动态时间步范围控制的 DDPM。
+DDPM with dynamic timestep range control.
 
 ```python
-# 标准 DDPM: t ~ Uniform(1, 1000)
+# Standard DDPM: t ~ Uniform(1, 1000)
 # Curriculum DDPM: t ~ Uniform(t_min, t_max)
 
-# Stage 1: t ∈ [0.8, 1.0] - 只有高噪声
-# Stage 3: t ∈ [0.4, 1.0] - 扩展范围
-# Stage 5: t ∈ [0.0, 1.0] - 完整范围
+# Stage 1: t ∈ [0.8, 1.0] - High noise only
+# Stage 3: t ∈ [0.4, 1.0] - Expanded range
+# Stage 5: t ∈ [0.0, 1.0] - Full range
 ```
 
 ---
 
-## 实现细节
+## Implementation Details
 
 ### Channel-level Sparsity (CS)
 
-位置：`mindiffusion/sparse_unet.py`
+Location: `mindiffusion/sparse_unet.py`
 
 ```python
 class SparseNaiveUnet(nn.Module):
     def __init__(self, ..., initial_sparsity=0.0):
-        # Channel mask: 1 = 活跃, 0 = 被 mask
+        # Channel mask: 1 = active, 0 = masked
         self.register_buffer('channel_mask', torch.ones(256))
 
-        # 记录每个 channel 是在哪个 stage 被激活的
+        # Record which stage each channel was activated
         self.register_buffer('channel_birth_stage', torch.zeros(256))
 
     def forward(self, x, t):
         ...
         thro = self.to_vec(down3)  # (B, 256, 1, 1)
 
-        # 在 bottleneck 应用 channel mask
+        # Apply channel mask at bottleneck
         thro = thro * self.channel_mask.view(1, -1, 1, 1)
 
         thro = self.up0(thro + temb)
@@ -230,12 +230,12 @@ class SparseNaiveUnet(nn.Module):
 
 ### Group L1 Regularization (CR)
 
-位置：`mindiffusion/reg_unet.py`
+Location: `mindiffusion/reg_unet.py`
 
 ```python
 class RegNaiveUnet(NaiveUnet):
     def get_group_l1_penalty(self, lambda_val: float) -> torch.Tensor:
-        """计算 Group L1 正则化惩罚项"""
+        """Compute Group L1 regularization penalty"""
         if lambda_val == 0:
             return torch.tensor(0.0, device=self.device)
 
@@ -251,26 +251,26 @@ class RegNaiveUnet(NaiveUnet):
 
 ### Gradient-based Regrowth
 
-**关键洞察**：即使被 mask 的 channels 在 backprop 时也会收到梯度！
+**Key insight**: Even masked channels receive gradients during backprop!
 
 ```python
 def regrow_channels(self, num_to_grow, current_stage, method="gradient"):
     if method == "gradient":
-        # 选择梯度幅度最大的 inactive channels
+        # Select inactive channels with highest gradient magnitude
         grad_for_selection = self.get_channel_gradients()
-        grad_for_selection[active_channels] = -inf  # 排除已活跃的
+        grad_for_selection[active_channels] = -inf  # Exclude already active
         _, topk_indices = torch.topk(grad_for_selection, num_to_grow)
 
-    # 激活选中的 channels
+    # Activate selected channels
     self.channel_mask[topk_indices] = 1
     self.channel_birth_stage[topk_indices] = current_stage
 ```
 
 ---
 
-## 使用方法
+## Usage
 
-### CelebA 32x32 训练
+### CelebA 32x32 Training
 
 ```bash
 # Curriculum Only (C)
@@ -282,31 +282,31 @@ CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 train_celeba_cs_32.py
 # Curriculum + Regularization (CR) - Group L1
 CUDA_VISIBLE_DEVICES=0 torchrun --nproc_per_node=1 train_celeba_cr_32.py
 
-# 多 GPU
+# Multi-GPU
 torchrun --nproc_per_node=4 train_celeba_cr_32.py
 
-# 指定不同端口（避免冲突）
+# Specify different port (avoid conflicts)
 torchrun --nproc_per_node=1 --master_port=29501 train_celeba_cr_32.py
 ```
 
-### 环境配置
+### Environment Setup
 
-设置 `.env` 文件：
+Set up `.env` file:
 ```
 CELEBA_PATH=/path/to/celeba/dataset
 ```
 
 ---
 
-## 配置说明
+## Configuration
 
-### 当前配置 (32x32)
+### Current Config (32x32)
 
 ```python
-# 共同配置
+# Common config
 n_feat = 32
 num_stages = 5
-epochs_per_stage = [5, 10, 15, 20, 30]  # 总共 80 epochs
+epochs_per_stage = [5, 10, 15, 20, 30]  # Total 80 epochs
 global_batch_size = 256
 lr = 2e-5
 
@@ -319,10 +319,10 @@ curriculum_stages = [
     (0.0, 1.0, "stage5_full_range"),
 ]
 
-# CS 特有配置
+# CS-specific config
 sparsity_schedule = [0.80, 0.60, 0.40, 0.20, 0.00]
 
-# CR 特有配置
+# CR-specific config
 lambda_max = 0.00005
 lambda_schedule = cosine_schedule(lambda_max, num_stages)
 # → [0.00005, 0.0000427, 0.000025, 0.0000073, 0.0]
@@ -330,26 +330,26 @@ lambda_schedule = cosine_schedule(lambda_max, num_stages)
 
 ---
 
-## 项目结构
+## Project Structure
 
 ```
 minDiffusion_curriculum/
 ├── mindiffusion/
 │   ├── __init__.py
-│   ├── unet.py              # 原始 NaiveUnet
-│   ├── sparse_unet.py       # SparseNaiveUnet (CS - 硬掩码)
+│   ├── unet.py              # Original NaiveUnet
+│   ├── sparse_unet.py       # SparseNaiveUnet (CS - hard mask)
 │   ├── reg_unet.py          # RegNaiveUnet (CR - Group L1)
-│   ├── ddpm.py              # 原始 DDPM
-│   ├── curriculum_ddpm.py   # CurriculumDDPM（时间范围控制）
-│   └── ddim.py              # DDIM 采样器
+│   ├── ddpm.py              # Original DDPM
+│   ├── curriculum_ddpm.py   # CurriculumDDPM (timestep range control)
+│   └── ddim.py              # DDIM sampler
 │
 ├── train_celeba_c_32.py     # Curriculum Only
 ├── train_celeba_cs_32.py    # Curriculum + Sparsity (Hard Mask)
 ├── train_celeba_cr_32.py    # Curriculum + Regularization (Group L1)
 │
-├── contents_c_32/           # C 生成样本
-├── contents_cs_32/          # CS 生成样本
-├── contents_cr_32/          # CR 生成样本
+├── contents_c_32/           # C generated samples
+├── contents_cs_32/          # CS generated samples
+├── contents_cr_32/          # CR generated samples
 │
 ├── checkpoints_c_32/        # C checkpoints
 ├── checkpoints_cs_32/       # CS checkpoints
@@ -358,16 +358,16 @@ minDiffusion_curriculum/
 
 ---
 
-## 核心要点
+## Key Takeaways
 
-1. **Curriculum Learning** 提供自然的从粗到细学习轨迹
-2. **CS (Hard Mask)** 在 bottleneck 直接限制容量，显式 regrowth
-3. **CR (Group L1)** 对所有 Conv 层软约束，λ 递减自动释放
-4. **两种稀疏方法** 都为精细特征预留干净的模型容量
+1. **Curriculum Learning** provides a natural coarse-to-fine learning trajectory
+2. **CS (Hard Mask)** directly limits capacity at bottleneck with explicit regrowth
+3. **CR (Group L1)** soft-constrains all Conv layers, λ decay auto-releases
+4. **Both sparsity methods** reserve clean model capacity for fine features
 
 ---
 
-## 参考
+## References
 
 - [Denoising Diffusion Probabilistic Models](https://arxiv.org/abs/2006.11239)
 - [Original minDiffusion](https://github.com/cloneofsimo/minDiffusion)
