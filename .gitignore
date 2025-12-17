@@ -3,3 +3,11 @@ __pycache__
 *.pth
 ddpm*.png
 .env
+
+# Generated samples and checkpoints
+contents/
+contents_*/
+checkpoints/
+checkpoints_*/
+generated_samples/
+fid_comparison/
