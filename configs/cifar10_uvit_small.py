@@ -1,5 +1,6 @@
 import ml_collections
 
+# accelerate launch --multi_gpu --num_processes 6 --mixed_precision fp16 train.py --config=configs/cifar10_uvit_small.py
 
 def d(**kwargs):
     """Helper of creating a config dict."""
@@ -13,12 +14,12 @@ def get_config():
     config.pred = 'noise_pred'
 
     config.train = d(
-        n_steps=500000,
-        batch_size=128,
+        n_steps=200000,
+        batch_size=126,  # 126 % 6 = 0 for multi-GPU
         mode='uncond',
         log_interval=10,
         eval_interval=5000,
-        save_interval=50000,
+        save_interval=10000,
     )
 
     config.optimizer = d(
@@ -36,9 +37,9 @@ def get_config():
     config.nnet = d(
         name='uvit',
         img_size=32,
-        patch_size=2,
-        embed_dim=512,
-        depth=12,
+        patch_size=4,
+        embed_dim=128,
+        depth=10,
         num_heads=8,
         mlp_ratio=4,
         qkv_bias=False,
@@ -53,10 +54,10 @@ def get_config():
     )
 
     config.sample = d(
-        sample_steps=1000,
-        n_samples=50000,
+        sample_steps=50,
+        n_samples=1000,
         mini_batch_size=500,
-        algorithm='euler_maruyama_sde',
+        algorithm='dpm_solver',
         path=''
     )
 
