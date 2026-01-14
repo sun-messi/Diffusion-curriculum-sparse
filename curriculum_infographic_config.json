@@ -1,0 +1,174 @@
+{
+  "figure": {
+    "figsize": [
+      20,
+      11
+    ],
+    "dpi": 200
+  },
+  "colors": {
+    "primary_blue": "#1F6FC4",
+    "dark_blue": "#1E40AF",
+    "light_blue": "#60A5FA",
+    "lighter_blue": "#93C5FD",
+    "dashed_grey": "#9CA3AF",
+    "background": "#FFFFFF",
+    "section_bg": "#E6EEF7",
+    "text_color": "#1F2937"
+  },
+  "title": {
+    "text": "",
+    "font_size": 1,
+    "y": 0.985
+  },
+  "top_arrow": {
+    "band_axes": [
+      0.08,
+      0.902,
+      0.84,
+      0.02
+    ],
+    "band_color": "#DCEAF9",
+    "axes": [
+      0.08,
+      0.892,
+      0.84,
+      0.05
+    ],
+    "height": 0.65,
+    "font_size": 12,
+    "arrow_head_ratio": 0.06,
+    "start_color": "#B7D0F1",
+    "end_color": "#2C6DCB",
+    "text": "Training Iteration"
+  },
+  "train_labels": {
+    "left": {
+      "text": "Train Start",
+      "x": 0.08,
+      "y": 0.938,
+      "font_size": 13
+    },
+    "right": {
+      "text": "Train End",
+      "x": 0.92,
+      "y": 0.938,
+      "font_size": 13
+    }
+  },
+  "section1": {
+    "bg_axes": [
+      0.08,
+      0.42,
+      0.84,
+      0.46
+    ],
+    "left_label": {
+      "text": "Training Noise Curriculum\nfrom High to Low",
+      "x": 0.04,
+      "y": 0.7,
+      "font_size": 13
+    },
+    "header_axes_y": 0.842,
+    "header_axes_w": 0.3,
+    "header_axes_h": 0.048,
+    "header_font_size": 14,
+    "grid_axes_y": 0.565,
+    "grid_axes_w": 0.185,
+    "grid_axes_h": 0.185,
+    "grid_label_y": 0.535,
+    "grid_label_font_size": 11,
+    "grid_x_positions": [
+      0.145,
+      0.415,
+      0.685
+    ],
+    "separators_x": [
+      0.333,
+      0.666
+    ],
+    "separator_width": 0.006,
+    "separator_color": "#FFFFFF"
+  },
+  "noise_arrow": {
+    "axes": [
+      0.08,
+      0.375,
+      0.84,
+      0.065
+    ],
+    "height": 0.95,
+    "font_size": 12,
+    "arrow_head_ratio": 0.055,
+    "start_color": "#AFC9EE",
+    "end_color": "#2C6DCB",
+    "text": "Noise progressively decreases"
+  },
+  "sync_arrows": {
+    "x_positions": [
+      0.238,
+      0.508,
+      0.778
+    ],
+    "axes_y": 0.255,
+    "axes_h": 0.175,
+    "line_width": 10,
+    "mutation_scale": 42
+  },
+  "section2": {
+    "bg_axes": [
+      0.08,
+      0.08,
+      0.84,
+      0.28
+    ],
+    "left_label": {
+      "text": "Model Capacity Curriculum\nfrom Sparsity to Density",
+      "x": 0.04,
+      "y": 0.2,
+      "font_size": 13
+    },
+    "nn_axes_y": 0.168,
+    "nn_axes_w": 0.25,
+    "nn_axes_h": 0.215,
+    "nn_label_y": 0.15,
+    "nn_label_font_size": 12,
+    "nn_x_positions": [
+      0.112,
+      0.382,
+      0.652
+    ],
+    "separators_x": [
+      0.333,
+      0.666
+    ],
+    "separator_width": 0.006,
+    "separator_color": "#FFFFFF"
+  },
+  "capacity_arrow": {
+    "axes": [
+      0.08,
+      0.095,
+      0.84,
+      0.05
+    ],
+    "height": 0.9,
+    "font_size": 12,
+    "arrow_head_ratio": 0.055,
+    "start_color": "#AFC9EE",
+    "end_color": "#2C6DCB",
+    "text": "Active neurons and capacity progressively increase"
+  },
+  "legend": {
+    "y": 0.038,
+    "img_size": 0.032,
+    "label_font_size": 11,
+    "item_x_positions": [
+      0.46,
+      0.56,
+      0.64
+    ],
+    "active_x": 0.74,
+    "inactive_x": 0.86
+  }
+}

@@ -9,10 +9,6 @@ SAMPLES_DIR="eval_samples/cifar10_uvit_small/${TIMESTAMP}"
 CHECKPOINTS=(40000 60000 200000)
 
 mkdir -p "$RESULTS_DIR" "$SAMPLES_DIR"
-SUMMARY_FILE="$RESULTS_DIR/fid_summary.txt"
-echo "FID Summary - $(date)" > "$SUMMARY_FILE"
-
-extract_fid() { grep "fid=" "$1" | tail -1 | sed 's/.*fid=\([0-9.]*\).*/\1/'; }
 
 for ckpt in "${CHECKPOINTS[@]}"; do
     echo "Evaluating checkpoint: ${ckpt}"
@@ -31,9 +27,6 @@ for ckpt in "${CHECKPOINTS[@]}"; do
         --config.sample.path="$SAMPLE_PATH" --config.sample.n_samples=5000 \
         --config.sample.mini_batch_size=1000 --output_path="$LOG_FILE"
 
-    FID=$(extract_fid "$LOG_FILE")
-    echo "FID: $FID"
-    echo "${ckpt}_${MODEL_TYPE}: FID = $FID" >> "$SUMMARY_FILE"
+    echo "Done: ${ckpt}"
 done
 echo "Done! Samples: $SAMPLES_DIR"
-cat "$SUMMARY_FILE"

@@ -55,9 +55,9 @@ def get_config():
     )
 
     config.sample = d(
-        sample_steps=50,
+        sample_steps=100,
         n_samples=5000,
-        mini_batch_size=1000,
+        mini_batch_size=5000,
         algorithm='dpm_solver',
         path=''
     )

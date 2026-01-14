@@ -29,15 +29,15 @@ def find_first_below(fid_values, threshold):
 thresholds = [50, 20, 15]
 models = {
     'Baseline': baseline,
-    'C Mode': c_mode,
-    'CS Mode': cs_mode,
+    'Denoise curriculum': c_mode,
+    'Joint curriculum': cs_mode,
 }
 
 convergence = {name: [] for name in models}
 for name, fid_values in models.items():
     for t in thresholds:
         step = find_first_below(fid_values, t)
-        convergence[name].append(step if step else 200)
+        convergence[name].append(step if step else 240)
 
 print("=== CelebA Convergence Speed (steps to reach FID threshold) ===")
 print(f"{'Model':<12} " + " ".join(f"FID<{t:2}" for t in thresholds))
@@ -50,12 +50,16 @@ for name in models:
 fig, ax = plt.subplots(figsize=(14, 10))
 
 x = np.arange(len(thresholds))
-width = 0.2
+width = 0.25
 colors = ['#1f77b4', '#2ca02c', '#d62728']  # blue, green, red
 
 for i, (name, color) in enumerate(zip(models.keys(), colors)):
     values = convergence[name]
-    bars = ax.bar(x + (i - 1.5) * width, values, width, label=name, color=color)
+    bars = ax.bar(x + (i - 1) * width, values, width, label=name, color=color)
+    # Add data labels on bars
+    for bar, val in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2,
+                f'{val}', ha='center', va='bottom', fontsize=28, fontweight='bold')
 
 ax.set_xlabel('FID Threshold', labelpad=15)
 ax.set_ylabel('Training Steps (k)', labelpad=15)
@@ -63,7 +67,8 @@ ax.set_xticks(x)
 ax.set_xticklabels([f'FID < {t}' for t in thresholds])
 ax.legend(loc='upper left', handlelength=3)
 ax.grid(True, linestyle='--', alpha=0.7, axis='y')
-ax.set_ylim(60, 210)
+ax.set_ylim(60, 260)
+ax.set_yticks([100, 150, 200, 250])
 
 plt.tight_layout()
 plt.savefig('outputs/celeba_convergence_speed.png', dpi=300, bbox_inches='tight')

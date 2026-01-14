@@ -89,7 +89,7 @@ def get_config():
     )
 
     config.sample = d(
-        sample_steps=50,  # ODE sampling steps
+        sample_steps=100,  # ODE sampling steps
         n_samples=2000,  # Number of samples for FID calculation
         mini_batch_size=500,  # Batch size per GPU
         algorithm='dpm_solver',  # Use ODE sampling
