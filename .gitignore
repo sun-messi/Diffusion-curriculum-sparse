@@ -32,6 +32,8 @@ analysis_outputs/
 eval_results/
 eval_samples/
 test_output/
+**/outputs/*.png
+**/outputs/*.csv
 
 # Azure config
 .azad/
