@@ -6,7 +6,7 @@ TIMESTAMP="20260111_002937"
 CHECKPOINT_DIR="/home/sunj11/Documents/U-ViT-fresh/workdir/cifar10_uvit_small/default_${TIMESTAMP}/ckpts"
 RESULTS_DIR="eval_results/cifar10_uvit_small/${TIMESTAMP}"
 SAMPLES_DIR="eval_samples/cifar10_uvit_small/${TIMESTAMP}"
-CHECKPOINTS=(40000 60000 200000)
+CHECKPOINTS=(80000 100000)
 
 mkdir -p "$RESULTS_DIR" "$SAMPLES_DIR"
 

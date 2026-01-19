@@ -268,7 +268,7 @@ def plot_silhouette_curves(
     """Plot silhouette score curves."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    ax.plot(steps, baseline_scores, 'b-o', label='Baseline', linewidth=2, markersize=6)
+    ax.plot(steps, baseline_scores, 'b-o', label='Standard training', linewidth=2, markersize=6)
     ax.plot(steps, cs_scores, 'r-s', label='CS Mode', linewidth=2, markersize=6)
     ax.plot(steps, c_scores, 'g-^', label='C Mode', linewidth=2, markersize=6)
 

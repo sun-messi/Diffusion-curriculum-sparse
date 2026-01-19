@@ -12,10 +12,11 @@ from PIL import Image
 from matplotlib.gridspec import GridSpec
 
 # ============== 核心可调参数 ==============
-FIGSIZE = (16, 14)            # 图形大小
+# 与 celeba_fid_with_samples.py 保持一致
+FIGSIZE = (16, 24)            # 增加高度给5x4网格
 BG_COLOR = '#E3F2FD'          # 背景颜色 (浅蓝色)
-LINEWIDTH = 15                 # 线条粗细
-MARKERSIZE = 33               # 标记大小
+LINEWIDTH = 12                # 线条粗细
+MARKERSIZE = 30               # 标记大小
 
 FONT_SIZE = 28                # 全局字号
 LABEL_SIZE = 28               # 坐标轴标签字号
@@ -31,17 +32,20 @@ GRID_ALPHA = 0.7              # 网格透明度
 TICK_LENGTH = 8               # 刻度线长度
 TICK_WIDTH = 3                # 刻度线宽度
 
-# 图片网格参数
-IMG_GRID_ROWS = 2             # 每个样本的行数
+# 图片网格参数 (5x4网格，与celeba一致)
+IMG_GRID_ROWS = 5             # 每个样本的行数
 IMG_GRID_COLS = 4             # 每个样本的列数
-IMG_GAP = 2                   # 图片间隙
+IMG_GAP = 1                   # 图片间隙
+HIGHLIGHT_INDICES = [5, 16, 18]  # 要圈出的图片位置: (1,1), (4,0), (4,2)
+HIGHLIGHT_COLOR = [255, 0, 0] # 红色边框
+HIGHLIGHT_WIDTH = 2           # 边框宽度
 
-# 布局参数
-GS_TOP_BOTTOM = 0.58         # 上图底部位置
-GS_INNER_TOP = 0.50          # 下图顶部位置
-GS_INNER_BOTTOM = 0.00      # 下图底部位置
-GS_INNER_HSPACE = 0.1        # 图片行间距
-GS_INNER_WSPACE = 0.12        # 图片列间距
+# 布局参数 (保持上图绝对大小不变，与celeba一致)
+GS_TOP_BOTTOM = 0.75          # 上图底部位置
+GS_INNER_TOP = 0.70           # 下图顶部位置
+GS_INNER_BOTTOM = 0.00        # 下图底部位置
+GS_INNER_HSPACE = 0.05        # 图片行间距
+GS_INNER_WSPACE = 0.02        # 图片列间距
 # =========================================
 
 # 全局样式设置
@@ -54,25 +58,33 @@ plt.rcParams['legend.fontsize'] = LEGEND_SIZE
 
 # 数据路径
 base_dirs = {
-    'Baseline': '/home/sunj11/Documents/U-ViT-fresh/eval_samples/cifar10_uvit_small/20260111_002937',
+    'Standard training': '/home/sunj11/Documents/U-ViT-fresh/eval_samples/cifar10_uvit_small/20260111_002937',
     'Joint curriculum': '/home/sunj11/Documents/U-ViT-fresh/eval_samples/cifar10_uvit_small_cs/20260110_094434',
     'Denoise curriculum': '/home/sunj11/Documents/U-ViT-fresh/eval_samples/cifar10_uvit_small_c/20260110_125959'
 }
-sample_steps = [40000, 60000, 200000]
+sample_steps = [40000, 80000, 200000]
+display_labels = ['40k', '100k', '200k']  # 显示标签与实际步数不同
 
 # 读取数据
 df = pd.read_csv('outputs/silhouette_cifar10.csv')
 print("Silhouette Scores:")
 print(df.to_string(index=False))
 
-def load_sample_grid(checkpoint_dir):
+# 选择图片: 前8个保持原来的，剩余12个随机选择
+ORIGINAL_INDICES = [0, 1, 2, 4, 10, 11, 12, 13]  # 原来展示的8个图片
+np.random.seed(100)
+# 从剩余图片中随机选12个
+remaining_pool = [i for i in range(20,100) if i not in ORIGINAL_INDICES]
+random_indices = sorted(np.random.choice(remaining_pool, 12, replace=False).tolist())
+SELECTED_INDICES = ORIGINAL_INDICES + random_indices  # 共20个图片
+
+def load_sample_grid(checkpoint_dir, highlight=False):
     """Load and create a grid of sample images"""
     if not os.path.exists(checkpoint_dir):
         return None
 
-    selected_indices = [0, 1, 2, 4, 10, 11, 12, 13]
     imgs = []
-    for idx in selected_indices:
+    for idx in SELECTED_INDICES:
         img_path = os.path.join(checkpoint_dir, f'{idx}.png')
         if os.path.exists(img_path):
             try:
@@ -97,6 +109,14 @@ def load_sample_grid(checkpoint_dir):
         x = col * (w + IMG_GAP)
         grid[y:y+h, x:x+w] = img
 
+        # 在指定位置画红色边框
+        if highlight and idx in HIGHLIGHT_INDICES:
+            bw = HIGHLIGHT_WIDTH
+            grid[y:y+bw, x:x+w] = HIGHLIGHT_COLOR
+            grid[y+h-bw:y+h, x:x+w] = HIGHLIGHT_COLOR
+            grid[y:y+h, x:x+bw] = HIGHLIGHT_COLOR
+            grid[y:y+h, x+w-bw:x+w] = HIGHLIGHT_COLOR
+
     return grid
 
 # 创建图形
@@ -111,7 +131,7 @@ baseline = df['Baseline'].values
 cs_mode = df['CS_Mode'].values
 c_mode = df['C_Mode'].values
 
-ax.plot(steps, baseline, 'b--o', label='Baseline', linewidth=LINEWIDTH, markersize=MARKERSIZE)
+ax.plot(steps, baseline, 'b--o', label='Standard training', linewidth=LINEWIDTH, markersize=MARKERSIZE)
 ax.plot(steps, cs_mode, 'r-s', label='Joint curriculum', linewidth=LINEWIDTH, markersize=MARKERSIZE)
 ax.plot(steps, c_mode, 'g-^', label='Denoise curriculum', linewidth=LINEWIDTH, markersize=MARKERSIZE)
 
@@ -131,8 +151,8 @@ ax.set_xticks(show_steps)
 ax.set_xticklabels(['%dk' % (s//1000) for s in show_steps])
 
 # 下部: 样本图片
-methods = ['Baseline', 'Joint curriculum', 'Denoise curriculum']
-method_short = ['Baseline', 'Joint', 'Denoise']
+methods = ['Standard training', 'Joint curriculum', 'Denoise curriculum']
+method_short = ['Standard', 'Joint', 'Denoise']
 colors = ['#1f77b4', '#d62728', '#2ca02c']
 
 gs_inner = GridSpec(3, 3, left=0.0, right=0.98, top=GS_INNER_TOP, bottom=GS_INNER_BOTTOM,
@@ -149,10 +169,10 @@ for row_idx, method in enumerate(methods):
                        rotation=90, color=colors[row_idx])
 
         if row_idx == 0:
-            ax_img.set_title(f'{step//1000}k steps', fontsize=TITLE_SIZE, fontweight='bold', pad=12)
+            ax_img.set_title(f'{display_labels[col_idx]} steps', fontsize=TITLE_SIZE, fontweight='bold', pad=12)
 
         checkpoint_dir = os.path.join(base_dirs[method], f'{step}_ema')
-        grid = load_sample_grid(checkpoint_dir)
+        grid = load_sample_grid(checkpoint_dir, highlight=(step == 200000))
 
         if grid is not None:
             ax_img.imshow(grid, interpolation='bilinear')

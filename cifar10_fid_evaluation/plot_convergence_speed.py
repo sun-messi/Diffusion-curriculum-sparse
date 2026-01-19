@@ -1,74 +1,59 @@
 """Plot convergence speed comparison for CIFAR-10 U-ViT models.
-Shows how quickly each model reaches FID thresholds (30, 20).
+Shows training steps to reach FID thresholds (50, 30, 20).
 """
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Set global style (plotting_standard.md)
-plt.rcParams['font.size'] = 32
-plt.rcParams['axes.labelsize'] = 32
-plt.rcParams['axes.titlesize'] = 36
-plt.rcParams['xtick.labelsize'] = 28
-plt.rcParams['ytick.labelsize'] = 28
-plt.rcParams['legend.fontsize'] = 26
+# ============== 核心可调参数 ==============
+FIGSIZE = (10, 8)
+BAR_WIDTH = 0.25
 
-# Data from README.md
-steps = np.array([20, 40, 60, 80, 100, 120, 140, 160, 180, 200])  # in k
-baseline = np.array([393.0, 219.4, 362.1, 135.6, 34.7, 21.2, 16.7, 15.1, 14.1, 13.5])
-c_mode = np.array([438.7, 215.1, 127.3, 70.6, 32.4, 20.7, 17.5, 16.0, 15.2, 14.2])
-cs_mode = np.array([415.3, 323.5, 133.0, 74.7, 27.8, 17.5, 16.3, 15.3, 14.3, 13.5])
+FONT_SIZE = 28
+LABEL_SIZE = 28
+TICK_SIZE = 28
+LEGEND_SIZE = 24
+# =========================================
 
-def find_first_below(fid_values, threshold):
-    """Find first step where FID drops below threshold."""
-    for i, fid in enumerate(fid_values):
-        if fid < threshold:
-            return steps[i]
-    return None
+# 全局样式
+plt.rcParams['font.size'] = FONT_SIZE
+plt.rcParams['axes.labelsize'] = LABEL_SIZE
+plt.rcParams['axes.titlesize'] = 32
+plt.rcParams['xtick.labelsize'] = TICK_SIZE
+plt.rcParams['ytick.labelsize'] = TICK_SIZE
+plt.rcParams['legend.fontsize'] = LEGEND_SIZE
 
-# Calculate convergence steps for thresholds
-thresholds = [80, 50, 30, 20]
-models = {
-    'Baseline': baseline,
-    'Denoise curriculum': c_mode,
-    'Joint curriculum': cs_mode,
-}
+# Real data: steps (k) to first reach FID threshold
+thresholds = [50, 30, 20]  # FID thresholds
+threshold_labels = ['FID < 50', 'FID < 30', 'FID < 20']
 
-convergence = {name: [] for name in models}
-for name, fid_values in models.items():
-    for t in thresholds:
-        step = find_first_below(fid_values, t)
-        convergence[name].append(step if step else 220)  # 220 means not reached
+# Baseline: FID<50 at 100k, FID<30 at 120k (21.2), FID<20 at 140k (16.7)
+baseline_steps = [100, 120, 140]
 
-print("=== Convergence Speed (steps to reach FID threshold) ===")
-print(f"{'Model':<12} " + " ".join(f"FID<{t:2}" for t in thresholds))
-print("-" * 50)
-for name in models:
-    vals = [f"{v:4}k" if v < 220 else " N/A " for v in convergence[name]]
-    print(f"{name:<12} " + "  ".join(vals))
+# Denoise curriculum: FID<50 at 100k (32.4), FID<30 at 120k (20.7), FID<20 at 140k (17.5)
+c_steps = [100, 120, 140]
 
-# Create bar chart
-fig, ax = plt.subplots(figsize=(14, 10))
+# Joint curriculum: FID<50 at 100k (27.8), FID<30 at 100k (27.8), FID<20 at 120k (17.5)
+cs_steps = [100, 100, 120]
+
+# Create bar plot
+fig, ax = plt.subplots(figsize=FIGSIZE)
 
 x = np.arange(len(thresholds))
-width = 0.25
-colors = ['#1f77b4', '#2ca02c', '#d62728']  # blue, green, red
 
-for i, (name, color) in enumerate(zip(models.keys(), colors)):
-    values = convergence[name]
-    bars = ax.bar(x + (i - 1) * width, values, width, label=name, color=color)
-    # Add data labels on bars
-    for bar, val in zip(bars, values):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
-                f'{val}', ha='center', va='bottom', fontsize=22, fontweight='bold')
+bars1 = ax.bar(x - BAR_WIDTH, baseline_steps, BAR_WIDTH, label='Standard training', color='#1f77b4')
+bars2 = ax.bar(x, c_steps, BAR_WIDTH, label='Denoise curriculum', color='#2ca02c')
+bars3 = ax.bar(x + BAR_WIDTH, cs_steps, BAR_WIDTH, label='Joint curriculum', color='#d62728')
 
 ax.set_xlabel('FID Threshold', labelpad=15)
 ax.set_ylabel('Training Steps (k)', labelpad=15)
 ax.set_xticks(x)
-ax.set_xticklabels([f'FID < {t}' for t in thresholds])
-ax.legend(loc='upper left', handlelength=3)
-ax.grid(True, linestyle='--', alpha=0.7, axis='y')
-ax.set_ylim(60, 160)
+ax.set_xticklabels(threshold_labels)
+ax.legend(loc='upper right', frameon=True)
+ax.grid(True, linestyle='--', alpha=0.5, axis='y')
+ax.tick_params(axis='both', which='major', length=8, width=3)
+
+ax.set_ylim(0, 160)
 
 plt.tight_layout()
 plt.savefig('outputs/cifar10_convergence_speed.png', dpi=300, bbox_inches='tight')
-print('\nSaved: outputs/cifar10_convergence_speed.png')
+print('Saved: outputs/cifar10_convergence_speed.png')

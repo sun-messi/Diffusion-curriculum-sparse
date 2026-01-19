@@ -6,6 +6,14 @@ Plot average Silhouette Score for selected classifications (similar magnitude to
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# ============== 高亮参数 (学习自 cifar10_fid_with_samples.py) ==============
+IMG_GRID_ROWS = 5
+IMG_GRID_COLS = 5
+HIGHLIGHT_INDICES = [10, 12, 24]  # 要圈出的图片位置: (2,0), (2,2), (4,4)
+HIGHLIGHT_COLOR = [255, 0, 0]     # 红色边框
+HIGHLIGHT_WIDTH = 2               # 边框宽度
+# =========================================================================
+
 # Read data
 df = pd.read_csv('outputs/silhouette_binary_all.csv')
 
@@ -32,7 +40,7 @@ baseline = avg_df['Baseline'].values
 cs_mode = avg_df['CS_Mode'].values
 c_mode = avg_df['C_Mode'].values
 
-ax.plot(steps, baseline, 'b-o', label='Baseline', linewidth=2, markersize=8)
+ax.plot(steps, baseline, 'b-o', label='Standard training', linewidth=2, markersize=8)
 ax.plot(steps, cs_mode, 'r-s', label='CS Mode (Curriculum+Sparsity)', linewidth=2, markersize=8)
 ax.plot(steps, c_mode, 'g-^', label='C Mode (Curriculum only)', linewidth=2, markersize=8)
 

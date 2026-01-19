@@ -28,7 +28,7 @@ plot_cs = cs_mode[idx_start:]
 plot_s = s_mode[idx_start:]
 
 # Plot FID curves
-ax.plot(plot_steps, plot_baseline, 'b-o', label='Baseline', linewidth=6, markersize=18)
+ax.plot(plot_steps, plot_baseline, 'b-o', label='Standard training', linewidth=6, markersize=18)
 ax.plot(plot_steps, plot_c, 'g-^', label='C Mode', linewidth=6, markersize=18)
 ax.plot(plot_steps, plot_cs, 'r-s', label='CS Mode', linewidth=6, markersize=18)
 ax.plot(plot_steps, plot_s, 'm-d', label='S Mode', linewidth=6, markersize=18)

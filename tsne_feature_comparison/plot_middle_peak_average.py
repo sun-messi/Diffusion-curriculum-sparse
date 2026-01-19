@@ -31,7 +31,7 @@ baseline = avg_df['Baseline'].values
 cs_mode = avg_df['CS_Mode'].values
 c_mode = avg_df['C_Mode'].values
 
-ax.plot(steps, baseline, 'b-o', label='Baseline', linewidth=2, markersize=8)
+ax.plot(steps, baseline, 'b-o', label='Standard training', linewidth=2, markersize=8)
 ax.plot(steps, cs_mode, 'r-s', label='CS Mode (Curriculum+Sparsity)', linewidth=2, markersize=8)
 ax.plot(steps, c_mode, 'g-^', label='C Mode (Curriculum only)', linewidth=2, markersize=8)
 
