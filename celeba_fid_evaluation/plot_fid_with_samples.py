@@ -12,33 +12,26 @@ from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 
 # ============== 核心可调参数 ==============
 # 参考 silhouette_cifar10.png 的比例
-FIGSIZE = (16, 24)            # 增加高度给5x4网格，FID图大小不变
+FIGSIZE = (24, 24)            # 增加高度给5x4网格，FID图大小不变
 BG_COLOR = '#E3F2FD'
 
-LINEWIDTH = 12                # 与silhouette一致
-MARKERSIZE = 30               # 与silhouette一致
+LINEWIDTH = 12
+MARKERSIZE = 25
 
-FONT_SIZE = 28                # 与silhouette一致
-LABEL_SIZE = 28
-TICK_SIZE = 28
-LEGEND_SIZE = 24
-TITLE_SIZE = 24
+FONT_SIZE = 30
+LABEL_SIZE = 30
+TICK_SIZE = 30
+LEGEND_SIZE = 28
+TITLE_SIZE = 28
 
-# 图片网格参数 (5x4网格)
+# 图片网格参数 (5x5网格)
 IMG_GRID_ROWS = 5             # 每个样本的行数
-IMG_GRID_COLS = 4             # 每个样本的列数
-IMG_GAP = 1                   # 图片间隙
+IMG_GRID_COLS = 5             # 每个样本的列数
+IMG_GAP = 2                   # 图片间隙
 IMG_SCALE = 1                 # 每张小图放大倍数
-HIGHLIGHT_INDICES = [0, 6, 15]  # 要圈出的图片位置: (0,0), (1,2), (3,3)
+HIGHLIGHT_INDICES = [2, 11, 15]  # 要圈出的图片位置: (1,3), (3,2), (4,1) 从1开始计数
 HIGHLIGHT_COLOR = [255, 0, 0] # 红色边框
-HIGHLIGHT_WIDTH = 4           # 边框宽度（加粗）
-
-# 布局参数 (保持FID图绝对大小不变)
-GS_TOP_BOTTOM = 0.75          # 上图底部位置
-GS_INNER_TOP = 0.70           # 下图顶部位置
-GS_INNER_BOTTOM = 0.00        # 下图底部位置
-GS_INNER_HSPACE = 0.05         # 图片行间距
-GS_INNER_WSPACE = 0.02        # 图片列间距
+HIGHLIGHT_WIDTH = 2           # 边框宽度
 # =========================================
 
 # 全局样式
@@ -67,7 +60,7 @@ c_curve = c_mode[idx_start:]
 cs_curve = cs_mode[idx_start:]
 
 # 样本图片步数
-sample_steps = [50000, 100000, 140000]
+sample_steps = [50000, 100000, 120000, 140000]
 
 # 样本图片路径
 base_dirs = {
@@ -79,12 +72,10 @@ base_dirs = {
 # 随机选择图片 (固定种子保证可复现)
 np.random.seed(100)
 SELECTED_INDICES = sorted(np.random.choice(range(200), IMG_GRID_ROWS * IMG_GRID_COLS, replace=False).tolist())
-# 交换位置: (1,3)<->(3,3)
-SELECTED_INDICES[7], SELECTED_INDICES[15] = SELECTED_INDICES[15], SELECTED_INDICES[7]
 print(f"\n=== Grid Position Mapping ===")
 print("Position (row, col) -> Image Index:")
 for pos, img_idx in enumerate(SELECTED_INDICES):
-    row, col = pos // 4, pos % 4
+    row, col = pos // IMG_GRID_COLS, pos % IMG_GRID_COLS
     print(f"  [{pos:2d}] ({row},{col}) -> image {img_idx}")
 print("=" * 30)
 
@@ -137,20 +128,22 @@ def load_sample_grid(checkpoint_dir, highlight=False):
 # 创建图形
 fig = plt.figure(figsize=FIGSIZE, facecolor=BG_COLOR)
 
-# 上部: FID 图 (两个并排)
-gs_top = GridSpec(1, 2, left=0.1, right=0.98, top=0.98, bottom=GS_TOP_BOTTOM, wspace=0.20)
+# 外层 GridSpec: FID图 和 图片区域
+gs_outer = GridSpec(2, 1, height_ratios=[0.8, 2.0], hspace=0.10)
 
-# 下部: 样本图片 (3行x3列)
-gs_inner = GridSpec(3, 3, left=0.08, right=0.98, top=GS_INNER_TOP, bottom=GS_INNER_BOTTOM,
-                    hspace=GS_INNER_HSPACE, wspace=GS_INNER_WSPACE)
+# 上部分成两个子图: 左边宏观, 右边细节
+gs_fid = GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_outer[0], wspace=0.15)
+
+# 内层 GridSpec: 3行(方法) x 4列(步数)
+gs_inner = GridSpecFromSubplotSpec(3, 4, subplot_spec=gs_outer[1], hspace=0.08, wspace=0.08)
 
 # 左图: 宏观视图 (60k-200k)
-ax_fid_left = fig.add_subplot(gs_top[0])
-ax_fid_left.plot(curve_steps, baseline_curve, 'b--o', label='Standard training',
+ax_fid_left = fig.add_subplot(gs_fid[0])
+ax_fid_left.plot(curve_steps, baseline_curve, 'b--o', label='Standard',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax_fid_left.plot(curve_steps, cs_curve, 'r-s', label='Joint curriculum',
+ax_fid_left.plot(curve_steps, c_curve, 'g-^', label='Denoise',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax_fid_left.plot(curve_steps, c_curve, 'g-^', label='Denoise curriculum',
+ax_fid_left.plot(curve_steps, cs_curve, 'r-s', label='Joint',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
 
 ax_fid_left.set_ylabel('FID', labelpad=10, color=DARK_GREY)
@@ -169,12 +162,12 @@ baseline_detail = baseline[idx_detail:]
 cs_detail = cs_mode[idx_detail:]
 c_detail = c_mode[idx_detail:]
 
-ax_fid_right = fig.add_subplot(gs_top[1])
-ax_fid_right.plot(detail_steps, baseline_detail, 'b--o', label='Standard training',
+ax_fid_right = fig.add_subplot(gs_fid[1])
+ax_fid_right.plot(detail_steps, baseline_detail, 'b--o', label='Standard',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax_fid_right.plot(detail_steps, cs_detail, 'r-s', label='Joint curriculum',
+ax_fid_right.plot(detail_steps, c_detail, 'g-^', label='Denoise',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax_fid_right.plot(detail_steps, c_detail, 'g-^', label='Denoise curriculum',
+ax_fid_right.plot(detail_steps, cs_detail, 'r-s', label='Joint',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
 
 ax_fid_right.set_ylabel('FID', labelpad=10, color=DARK_GREY)
@@ -186,8 +179,8 @@ ax_fid_right.spines['top'].set_visible(False)
 ax_fid_right.spines['right'].set_visible(False)
 
 # 下部: 样本图片
-methods = ['Standard', 'Joint', 'Denoise']
-colors = ['#2563EB', '#DC2626', '#2ca02c']  # Blue, Red, Green
+methods = ['Standard', 'Denoise', 'Joint']
+colors = ['#2563EB', '#2ca02c', '#DC2626']  # Blue, Green, Red
 
 for row_idx, method in enumerate(methods):
     for col_idx, step in enumerate(sample_steps):
@@ -212,8 +205,10 @@ for row_idx, method in enumerate(methods):
         if grid is not None:
             ax_img.imshow(grid, interpolation='bilinear')
 
+plt.subplots_adjust(left=0.12, right=0.96, top=0.95, bottom=0.02)
+
 # 保存
 os.makedirs('outputs', exist_ok=True)
-plt.savefig('outputs/celeba_fid_with_samples.png', dpi=300,
+plt.savefig('outputs/celeba_fid_with_samples.pdf',
             bbox_inches='tight', pad_inches=0.3, facecolor=BG_COLOR)
-print("Saved: outputs/celeba_fid_with_samples.png")
+print("Saved: outputs/celeba_fid_with_samples.pdf")

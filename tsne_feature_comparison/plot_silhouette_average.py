@@ -129,9 +129,9 @@ baseline = df['Baseline'].values
 cs_mode = df['CS_Mode'].values
 c_mode = df['C_Mode'].values
 
-ax.plot(steps, baseline, 'b--o', label='Standard training', linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax.plot(steps, cs_mode, 'r-s', label='Joint curriculum', linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax.plot(steps, c_mode, 'g-^', label='Denoise curriculum', linewidth=LINEWIDTH, markersize=MARKERSIZE)
+ax.plot(steps, baseline, 'b--o', label='Standard', linewidth=LINEWIDTH, markersize=MARKERSIZE)
+ax.plot(steps, c_mode, 'g-^', label='Denoise', linewidth=LINEWIDTH, markersize=MARKERSIZE)
+ax.plot(steps, cs_mode, 'r-s', label='Joint', linewidth=LINEWIDTH, markersize=MARKERSIZE)
 
 # 竖向虚线
 vline_style = {'color': 'black', 'linestyle': '--', 'linewidth': VLINE_WIDTH, 'alpha': VLINE_ALPHA}
@@ -149,9 +149,9 @@ ax.set_xticks(show_steps)
 ax.set_xticklabels(['%dk' % (s//1000) for s in show_steps])
 
 # 下部: 样本图片
-methods = ['Standard training', 'Joint curriculum', 'Denoise curriculum']
-method_short = ['Standard', 'Joint', 'Denoise']
-colors = ['#1f77b4', '#d62728', '#2ca02c']
+methods = ['Standard training', 'Denoise curriculum', 'Joint curriculum']
+method_short = ['Standard', 'Denoise', 'Joint']
+colors = ['#1f77b4', '#2ca02c', '#d62728']
 
 gs_inner = GridSpec(3, 3, left=0.0, right=0.98, top=GS_INNER_TOP, bottom=GS_INNER_BOTTOM,
                     hspace=GS_INNER_HSPACE, wspace=GS_INNER_WSPACE)
@@ -175,5 +175,5 @@ for row_idx, method in enumerate(methods):
         if grid is not None:
             ax_img.imshow(grid, interpolation='bilinear')
 
-plt.savefig('outputs/silhouette_selected_average.png', dpi=300, bbox_inches='tight', facecolor=BG_COLOR)
-print("\nSaved: outputs/silhouette_selected_average.png")
+plt.savefig('outputs/silhouette_selected_average.pdf', bbox_inches='tight', facecolor=BG_COLOR)
+print("\nSaved: outputs/silhouette_selected_average.pdf")

@@ -13,7 +13,7 @@ from matplotlib.gridspec import GridSpec
 
 # ============== 核心可调参数 ==============
 # 与 celeba_fid_with_samples.py 保持一致
-FIGSIZE = (16, 24)            # 增加高度给5x4网格
+FIGSIZE = (18, 20)            # 原始大小
 BG_COLOR = '#E3F2FD'          # 背景颜色 (浅蓝色)
 LINEWIDTH = 12                # 线条粗细
 MARKERSIZE = 30               # 标记大小
@@ -32,20 +32,25 @@ GRID_ALPHA = 0.7              # 网格透明度
 TICK_LENGTH = 8               # 刻度线长度
 TICK_WIDTH = 3                # 刻度线宽度
 
-# 图片网格参数 (5x4网格，与celeba一致)
-IMG_GRID_ROWS = 5             # 每个样本的行数
-IMG_GRID_COLS = 4             # 每个样本的列数
+# 图片网格参数 (只显示4个标红图片)
+# IMG_GRID_ROWS = 5             # 每个样本的行数 (原5x4网格)
+# IMG_GRID_COLS = 4             # 每个样本的列数
+IMG_GRID_ROWS = 2             # 只显示4个图片: 2x2网格
+IMG_GRID_COLS = 2
 IMG_GAP = 1                   # 图片间隙
-HIGHLIGHT_INDICES = [5, 16, 18]  # 要圈出的图片位置: (1,1), (4,0), (4,2)
+IMG_SIZE = 28                 # 每个小图大小 (原32, 放大到40)
+# HIGHLIGHT_INDICES = [5, 16, 18]  # 原标红位置: (2,2), (5,1), (5,3)
+# HIGHLIGHT_INDICES = [0, 1, 2, 3]  # 新: 所有4个图片都标红
+HIGHLIGHT_INDICES = []  # 不标红
 HIGHLIGHT_COLOR = [255, 0, 0] # 红色边框
 HIGHLIGHT_WIDTH = 2           # 边框宽度
 
-# 布局参数 (保持上图绝对大小不变，与celeba一致)
+# 布局参数
 GS_TOP_BOTTOM = 0.75          # 上图底部位置
 GS_INNER_TOP = 0.70           # 下图顶部位置
 GS_INNER_BOTTOM = 0.00        # 下图底部位置
-GS_INNER_HSPACE = 0.05        # 图片行间距
-GS_INNER_WSPACE = 0.02        # 图片列间距
+GS_INNER_HSPACE = 0.05        # 图片行间距 (原0.05)
+GS_INNER_WSPACE = 0.05        # 图片列间距
 # =========================================
 
 # 全局样式设置
@@ -62,8 +67,8 @@ base_dirs = {
     'Joint curriculum': '/home/sunj11/Documents/U-ViT-fresh/eval_samples/cifar10_uvit_small_cs/20260110_094434',
     'Denoise curriculum': '/home/sunj11/Documents/U-ViT-fresh/eval_samples/cifar10_uvit_small_c/20260110_125959'
 }
-sample_steps = [40000, 80000, 200000]
-display_labels = ['40k', '100k', '200k']  # 显示标签与实际步数不同
+sample_steps = [40000, 60000, 100000, 200000]
+display_labels = ['40k', '60k', '100k', '200k']
 
 # 读取数据
 df = pd.read_csv('outputs/silhouette_cifar10.csv')
@@ -71,12 +76,15 @@ print("Silhouette Scores:")
 print(df.to_string(index=False))
 
 # 选择图片: 前8个保持原来的，剩余12个随机选择
-ORIGINAL_INDICES = [0, 1, 2, 4, 10, 11, 12, 13]  # 原来展示的8个图片
-np.random.seed(100)
-# 从剩余图片中随机选12个
-remaining_pool = [i for i in range(20,100) if i not in ORIGINAL_INDICES]
-random_indices = sorted(np.random.choice(remaining_pool, 12, replace=False).tolist())
-SELECTED_INDICES = ORIGINAL_INDICES + random_indices  # 共20个图片
+# ORIGINAL_INDICES = [0, 1, 2, 4, 10, 11, 12, 13]  # 原来展示的8个图片
+# np.random.seed(100)
+# # 从剩余图片中随机选12个
+# remaining_pool = [i for i in range(20,100) if i not in ORIGINAL_INDICES]
+# random_indices = sorted(np.random.choice(remaining_pool, 12, replace=False).tolist())
+# SELECTED_INDICES = ORIGINAL_INDICES + random_indices  # 共20个图片
+
+# 只显示4个标红图片: (2,2)->11, (5,1)->82, (5,3)->88, (5,4)->89
+SELECTED_INDICES = [11, 228, 88, 89]
 
 def load_sample_grid(checkpoint_dir, highlight=False):
     """Load and create a grid of sample images"""
@@ -89,6 +97,8 @@ def load_sample_grid(checkpoint_dir, highlight=False):
         if os.path.exists(img_path):
             try:
                 img = Image.open(img_path)
+                # 放大到 IMG_SIZE x IMG_SIZE
+                img = img.resize((IMG_SIZE, IMG_SIZE), Image.LANCZOS)
                 imgs.append(np.array(img))
             except Exception:
                 pass
@@ -131,9 +141,9 @@ baseline = df['Baseline'].values
 cs_mode = df['CS_Mode'].values
 c_mode = df['C_Mode'].values
 
-ax.plot(steps, baseline, 'b--o', label='Standard training', linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax.plot(steps, cs_mode, 'r-s', label='Joint curriculum', linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax.plot(steps, c_mode, 'g-^', label='Denoise curriculum', linewidth=LINEWIDTH, markersize=MARKERSIZE)
+ax.plot(steps, baseline, 'b--o', label='Standard', linewidth=LINEWIDTH, markersize=MARKERSIZE)
+ax.plot(steps, c_mode, 'g-^', label='Denoise', linewidth=LINEWIDTH, markersize=MARKERSIZE)
+ax.plot(steps, cs_mode, 'r-s', label='Joint', linewidth=LINEWIDTH, markersize=MARKERSIZE)
 
 # 竖向虚线
 vline_style = {'color': 'black', 'linestyle': '--', 'linewidth': VLINE_WIDTH, 'alpha': VLINE_ALPHA}
@@ -151,11 +161,11 @@ ax.set_xticks(show_steps)
 ax.set_xticklabels(['%dk' % (s//1000) for s in show_steps])
 
 # 下部: 样本图片
-methods = ['Standard training', 'Joint curriculum', 'Denoise curriculum']
-method_short = ['Standard', 'Joint', 'Denoise']
-colors = ['#1f77b4', '#d62728', '#2ca02c']
+methods = ['Standard training', 'Denoise curriculum', 'Joint curriculum']
+method_short = ['Standard', 'Denoise', 'Joint']
+colors = ['#1f77b4', '#2ca02c', '#d62728']
 
-gs_inner = GridSpec(3, 3, left=0.0, right=0.98, top=GS_INNER_TOP, bottom=GS_INNER_BOTTOM,
+gs_inner = GridSpec(3, 4, left=0.0, right=0.98, top=GS_INNER_TOP, bottom=GS_INNER_BOTTOM,
                     hspace=GS_INNER_HSPACE, wspace=GS_INNER_WSPACE)
 
 for row_idx, method in enumerate(methods):
@@ -177,5 +187,5 @@ for row_idx, method in enumerate(methods):
         if grid is not None:
             ax_img.imshow(grid, interpolation='bilinear')
 
-plt.savefig('outputs/silhouette_cifar10.png', dpi=300, bbox_inches='tight', facecolor=BG_COLOR)
-print("\nSaved: outputs/silhouette_cifar10.png")
+plt.savefig('outputs/silhouette_cifar10.pdf', dpi=100, bbox_inches='tight', facecolor=BG_COLOR)
+print("\nSaved: outputs/silhouette_cifar10.pdf")

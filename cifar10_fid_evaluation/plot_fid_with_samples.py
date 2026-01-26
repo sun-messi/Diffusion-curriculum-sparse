@@ -142,11 +142,11 @@ gs_inner = GridSpecFromSubplotSpec(3, 4, subplot_spec=gs_outer[1], hspace=0.08, 
 
 # 左图: 宏观视图 (80k-200k)
 ax_fid_left = fig.add_subplot(gs_fid[0])
-ax_fid_left.plot(curve_steps, baseline_curve, 'b--o', label='Standard training',
+ax_fid_left.plot(curve_steps, baseline_curve, 'b--o', label='Standard',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax_fid_left.plot(curve_steps, cs_curve, 'r-s', label='Joint curriculum',
+ax_fid_left.plot(curve_steps, c_curve, 'g-^', label='Denoise',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax_fid_left.plot(curve_steps, c_curve, 'g-^', label='Denoise curriculum',
+ax_fid_left.plot(curve_steps, cs_curve, 'r-s', label='Joint',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
 
 ax_fid_left.set_ylabel('FID', labelpad=10, color=DARK_GREY)
@@ -166,11 +166,11 @@ cs_detail = cs_mode[idx_detail:]
 c_detail = c_mode[idx_detail:]
 
 ax_fid_right = fig.add_subplot(gs_fid[1])
-ax_fid_right.plot(detail_steps, baseline_detail, 'b--o', label='Standard training',
+ax_fid_right.plot(detail_steps, baseline_detail, 'b--o', label='Standard',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax_fid_right.plot(detail_steps, cs_detail, 'r-s', label='Joint curriculum',
+ax_fid_right.plot(detail_steps, c_detail, 'g-^', label='Denoise',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
-ax_fid_right.plot(detail_steps, c_detail, 'g-^', label='Denoise curriculum',
+ax_fid_right.plot(detail_steps, cs_detail, 'r-s', label='Joint',
             linewidth=LINEWIDTH, markersize=MARKERSIZE)
 
 ax_fid_right.set_ylabel('FID', labelpad=10, color=DARK_GREY)
@@ -182,8 +182,8 @@ ax_fid_right.spines['top'].set_visible(False)
 ax_fid_right.spines['right'].set_visible(False)
 
 # 下部: 样本图片
-methods = ['Standard', 'Joint', 'Denoise']
-colors = ['#2563EB', '#DC2626', '#2ca02c']  # Blue, Red, Green
+methods = ['Standard', 'Denoise', 'Joint']
+colors = ['#2563EB', '#2ca02c', '#DC2626']  # Blue, Green, Red
 
 for row_idx, method in enumerate(methods):
     for col_idx, step in enumerate(sample_steps):
@@ -212,6 +212,6 @@ plt.subplots_adjust(left=0.12, right=0.96, top=0.95, bottom=0.02)
 
 # 保存
 os.makedirs('outputs', exist_ok=True)
-plt.savefig('outputs/cifar10_fid_with_samples.png', dpi=300,
+plt.savefig('outputs/uvit_cifar10_fid_with_samples.pdf',
             bbox_inches='tight', pad_inches=0.3, facecolor=BG_COLOR)
-print("Saved: outputs/cifar10_fid_with_samples.png")
+print("Saved: outputs/uvit_cifar10_fid_with_samples.pdf")

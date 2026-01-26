@@ -41,8 +41,8 @@ cs_mode = avg_df['CS_Mode'].values
 c_mode = avg_df['C_Mode'].values
 
 ax.plot(steps, baseline, 'b-o', label='Standard training', linewidth=2, markersize=8)
-ax.plot(steps, cs_mode, 'r-s', label='CS Mode (Curriculum+Sparsity)', linewidth=2, markersize=8)
-ax.plot(steps, c_mode, 'g-^', label='C Mode (Curriculum only)', linewidth=2, markersize=8)
+ax.plot(steps, c_mode, 'g-^', label='Denoise curriculum', linewidth=2, markersize=8)
+ax.plot(steps, cs_mode, 'r-s', label='Joint curriculum', linewidth=2, markersize=8)
 
 ax.set_xlabel('Training Step', fontsize=12)
 ax.set_ylabel('Average Silhouette Score (cosine)', fontsize=12)
