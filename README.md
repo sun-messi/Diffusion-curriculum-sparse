@@ -2,11 +2,11 @@
 
 This repository implements a **joint noise-sparsity curriculum learning** strategy for training diffusion models, built on top of [U-ViT](https://arxiv.org/abs/2209.12152) (CVPR 2023).
 
-<img src="uvit_final_three_way_comparison.png?raw=true" alt="FID Comparison" width="600"/>
+<img src="https://raw.githubusercontent.com/sun-messi/Diffusion-curriculum-sparse/main/uvit_final_three_way_comparison.png" alt="FID Comparison" width="600"/>
 
 **Figure 1.** FID comparison between baseline (without curriculum) and our joint noise-sparsity curriculum on CelebA-64. The curriculum method achieves consistently lower FID scores after 120k steps. Bottom rows show generated samples at different training steps.
 
-<img src="joint_curriculum_final.png?raw=true" alt="Curriculum Framework" width="800"/>
+<img src="https://raw.githubusercontent.com/sun-messi/Diffusion-curriculum-sparse/main/joint_curriculum_final.png" alt="FID Comparison" width="800"/>
 
 **Figure 2.** Joint noise-sparsity curriculum for diffusion training. Training data progressively expands from high-noise samples to a mixture of high-noise, low-noise, and clean data. The model capacity is increased accordingly by gradually reducing sparsity and activating more neurons.
 
