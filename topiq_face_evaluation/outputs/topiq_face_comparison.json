@@ -1,0 +1,32 @@
+{
+  "model_a": {
+    "name": "celeba64_uvit_small",
+    "checkpoint": "150000_ema",
+    "dir": "/home/sunj11/Documents/U-ViT-fresh/eval_samples/celeba64_uvit_small/20260101_154543/150000_ema",
+    "num_images": 4013,
+    "mean": 0.2100886209458744,
+    "std": 0.02506406787531931,
+    "median": 0.2132379561662674,
+    "min": 0.09811657667160034,
+    "max": 0.27862548828125
+  },
+  "model_b": {
+    "name": "celeba64_uvit_small_c",
+    "checkpoint": "150000_ema",
+    "dir": "/home/sunj11/Documents/U-ViT-fresh/eval_samples/celeba64_uvit_small_c/20260101_160525/150000_ema",
+    "num_images": 4013,
+    "mean": 0.21433288064304207,
+    "std": 0.02686008244022868,
+    "median": 0.21719707548618317,
+    "min": 0.10080178081989288,
+    "max": 0.28313249349594116
+  },
+  "comparison": {
+    "num_paired": 4013,
+    "mean_diff": -0.004244259697167677,
+    "a_wins": 1378,
+    "b_wins": 2635,
+    "ties": 0,
+    "better_model": "celeba64_uvit_small_c"
+  }
+}
