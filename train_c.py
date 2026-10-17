@@ -26,56 +26,7 @@ import numpy as np
 import shutil
 
 
-class EmbeddingSparsityMask(nn.Module):
-    """
-    Apply progressive sparsity mask to embeddings.
-
-    Masks are applied at two locations:
-    1. After PatchEmbed: (B, 256, 512) -> mask last dims to 0
-    2. Before decoder: (B, 256+extras, 512) -> mask last dims to 0
-
-    This creates hierarchical feature learning:
-    - Early stages (high noise, high sparsity): Only first K dims active
-    - Later stages (low noise, low sparsity): More dims activated
-    - Inference: All dims active (no mask)
-    """
-    def __init__(self, embed_dim):
-        super().__init__()
-        self.embed_dim = embed_dim
-        self.current_sparsity = 0.0
-        self.is_inference = False
-
-    def set_sparsity(self, sparsity):
-        """Update current sparsity level."""
-        self.current_sparsity = float(sparsity)
-
-    def set_inference_mode(self, is_inference):
-        """Set inference mode (disables masking)."""
-        self.is_inference = is_inference
-
-    def forward(self, x):
-        """
-        Apply sparsity mask to embeddings.
-
-        Args:
-            x: [..., embed_dim] embeddings
-
-        Returns:
-            Masked embeddings with same shape
-        """
-        # No masking during inference or when sparsity=0
-        if self.is_inference or self.current_sparsity == 0.0:
-            return x
-
-        # Calculate active dimensions
-        active_dims = int(self.embed_dim * (1.0 - self.current_sparsity))
-        active_dims = max(1, min(active_dims, self.embed_dim))
-
-        # Create and apply mask
-        mask = torch.zeros(self.embed_dim, device=x.device, dtype=x.dtype)
-        mask[:active_dims] = 1.0
-
-        return x * mask  # Zero out inactive dimensions
+from libs.curriculum import EmbeddingSparsityMask, validate_time_range
 
 
 def LSimple_curriculum(score_model, x0, pred='noise_pred', t_min=0.0, t_max=1.0, **kwargs):
@@ -96,6 +47,7 @@ def LSimple_curriculum(score_model, x0, pred='noise_pred', t_min=0.0, t_max=1.0,
     Returns:
         loss: per-sample loss tensor [B]
     """
+    validate_time_range(t_min, t_max)
     # Sample timesteps uniformly from [t_min, t_max]
     t = torch.rand(x0.shape[0], device=x0.device) * (t_max - t_min) + t_min
 
