@@ -1,226 +1,112 @@
-# Joint Noise-Sparsity Curriculum Learning for Diffusion Models
+# A Theoretical Analysis of Curriculum Training in Diffusion Models
 
-This repository implements a **joint noise-sparsity curriculum learning** strategy for training diffusion models, built on top of [U-ViT](https://arxiv.org/abs/2209.12152) (CVPR 2023).
+**ICML 2026 · Workshop on Foundations of Deep Generative Models (FoGen)**
 
-<img src="uvit_final_three_way_comparison.png" alt="FID Comparison" width="600"/>
+Jiawei Sun, Shuai Zhang, Hongkang Li, Sijia Liu, Pin-Yu Chen, Meng Wang
 
-**Figure 1.** FID comparison between baseline (without curriculum) and our joint noise-sparsity curriculum on CelebA-64. The curriculum method achieves consistently lower FID scores after 120k steps. Bottom rows show generated samples at different training steps.
+[Paper](https://openreview.net/forum?id=AxbjagGhku) · [Project page](https://sun-messi.github.io/projects/diffusion-curriculum/) · [Jiawei Sun](https://sun-messi.github.io/)
 
-<img src="joint_curriculum_final.png" alt="Curriculum Framework" width="800"/>
+![Joint noise and capacity curriculum](docs/figures/curriculum.png)
 
-**Figure 2.** Joint noise-sparsity curriculum for diffusion training. Training data progressively expands from high-noise samples to a mixture of high-noise, low-noise, and clean data. The model capacity is increased accordingly by gradually reducing sparsity and activating more neurons.
+*Joint curriculum overview from the local manuscript: progressively introduce lower-noise examples while increasing active model capacity.*
 
----
+## Research question
 
-## Key Idea
+When should a denoiser learn coarse structure, and when should it learn finer features? We study the interaction between the noise distribution seen during training and available model capacity. The theory concerns a structured data/model setting; it does not establish that every practical model learns perfectly disentangled features.
 
-### Why Curriculum Learning for Diffusion Models?
-
-Diffusion models learn to denoise images across multiple noise levels. Our theoretical analysis reveals that:
-
-1. **Feature Learning Order**: During training, dominant large-scale features (coarse structure) are learned before weaker fine-grained features (textures, details).
-
-2. **The Problem with Standard Training**: Without curriculum, neurons encoding fine-grained features inevitably develop **mixed representations** that entangle multiple feature directions. This causes distortions and local artifacts in generated samples.
-
-3. **Curriculum Solution**: By training with high noise first (where only coarse features are learnable), then progressively introducing lower noise levels, we enable **pure, disentangled feature representations**.
-
-### Joint Noise-Sparsity Curriculum
-
-Our key insight: **Noise scheduling alone is insufficient**. To fully exploit the stage-wise nature of feature learning, model sparsity must be coordinated with the noise curriculum:
-
-| Training Stage | Noise Range | Model Sparsity | What is Learned |
-|----------------|-------------|----------------|-----------------|
-| Early | High noise only (t_min=0.3) | High sparsity (15%) | Coarse structure |
-| Middle | Expanding range (t_min→0.1) | Reducing sparsity | Medium details |
-| Late | Full range (t_min=0) | Full capacity (0%) | Fine-grained details |
-
-This coordinated design prevents early-stage dominant features from occupying all representational capacity, preserving room for weaker features to be learned purely in later stages.
-
----
-
-## Theoretical Foundation
-
-Our theoretical analysis proves:
-
-### 1. Curriculum Training Induces Pure Feature Learning
-
-Under curriculum training, the network exhibits a natural **two-stage learning dynamics**:
-- **Stage I (high noise)**: Neurons align with dominant features M₁, achieving near-perfect alignment
-- **Stage II (low noise)**: A separate set of neurons aligns with fine-grained features M₂
-
-Each neuron specializes to a **single feature direction**, yielding pure representations.
-
-### 2. Non-Curriculum Training Produces Mixed Representations
-
-Without curriculum, neurons encoding weak features M₂ inevitably capture dominant features M₁ simultaneously, resulting in **entangled representations**.
-
-### 3. Generalization Gap in Low-Noise Regime
-
-| Noise Regime | Curriculum | Non-Curriculum |
-|--------------|------------|----------------|
-| High noise (τ large) | o(1) error | o(1) error |
-| Low noise (τ small) | **o(1) error** | **Θ(1) error** |
-
-The low-noise regime corresponds to the final steps of diffusion sampling where fine-grained details are generated. This explains why curriculum training particularly benefits sample quality.
-
----
+This repository contains the U-ViT implementation and experimental utilities. It does not include every architecture or experiment in later local manuscript revisions.
 
 ## Results
 
-### FID on CelebA 64x64
+![U-ViT three-way comparison](docs/figures/uvit-results.png)
 
-| Method | 100k steps | 120k steps | 160k steps | 200k steps |
-|--------|------------|------------|------------|------------|
-| Baseline (no curriculum) | 42.5 | 21.8 | 19.2 | 16.8 |
-| **Joint Curriculum (Ours)** | 40.2 | **15.1** | **13.4** | **13.1** |
+*Standard training, denoising schedule only, and joint scheduling. The horizontal axis is training FLOPs (PFLOPs); sample panels are at 200k steps. Reproduced from the local manuscript figure used on the project page, not a newly run experiment.*
 
-The curriculum method achieves **22% lower FID** at 200k steps (13.1 vs 16.8).
+The previous README's standalone FID table is no longer presented as a verified current result. Read numerical values and experimental scope from the linked paper and the figure. [Figure provenance and reproduction limits](docs/REPRODUCTION.md).
 
----
-
-## Installation
+## Installation and data
 
 ```bash
-pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu116
-pip install accelerate==0.12.0 absl-py ml_collections einops wandb ftfy==6.1.1 transformers==4.23.1
-
-# Optional: xformers for faster attention
-pip install -U xformers
-pip install -U --pre triton
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
----
+Install a matching CUDA-enabled PyTorch/torchvision pair for GPU runs. The dependency list describes the core image-training path, not a validated lockfile for every inherited text-to-image utility. Optional xformers is not required for the fallback attention implementation.
+
+Prepare CelebA images at `assets/datasets/celeba` (or override `config.dataset.path`) and the FID reference statistics required by `datasets.py`. Do not substitute a different reference split or number of samples without recording it. Model weights, datasets and FID statistics are not bundled.
 
 ## Training
 
-### Baseline (Standard Training)
+Run from the repository root. Explicit work directories avoid ambiguity when resuming/evaluating.
 
 ```bash
+# Standard training
 accelerate launch --multi_gpu --num_processes 4 --mixed_precision fp16 \
-    train.py --config=configs/celeba64_uvit_small.py
-```
+  train.py --config=configs/celeba64_uvit_small.py --workdir=workdir/standard
 
-### Joint Noise-Sparsity Curriculum (Ours)
-
-```bash
+# Noise curriculum only
 accelerate launch --multi_gpu --num_processes 4 --mixed_precision fp16 \
-    train_c.py --config=configs/celeba64_uvit_small_cs.py
+  train_c.py --config=configs/celeba64_uvit_small_c.py --workdir=workdir/noise
+
+# Joint noise and sparsity curriculum
+accelerate launch --multi_gpu --num_processes 4 --mixed_precision fp16 \
+  train_c.py --config=configs/celeba64_uvit_small_cs.py --workdir=workdir/joint
 ```
 
-### Configuration Files
+These are entry-point examples, not a guarantee of identical paper results. Check each config's batch size, optimizer, sampling settings and data path before comparing methods. The joint config has batch size 252, embedding dimension 256 and 200k total steps. Its stage sparsity begins at 0.15 (**15% masked, about 85% active**), not 15% active capacity.
 
-| Config | Description |
-|--------|-------------|
-| `configs/celeba64_uvit_small.py` | Baseline (standard training) |
-| `configs/celeba64_uvit_small_cs.py` | **Joint noise-sparsity curriculum** |
+## What the implementation actually masks
 
-### Curriculum Stages (celeba64_uvit_small_cs.py)
+`train_c.py` attaches an `EmbeddingSparsityMask` **after patch embedding** for the training network and EMA network. It does not install a second decoder mask. The mask is disabled for sampling/evaluation. This is activation masking, not physical removal of transformer weights or demonstrated sparse-kernel acceleration.
 
-```python
-stages=[
-    # Stage 1-2: High noise, high sparsity (coarse structure)
-    d(t_min=0.3, t_max=1.0, n_steps=10000, sparsity=0.15),
-    d(t_min=0.2, t_max=1.0, n_steps=10000, sparsity=0.15),
+`LSimple_curriculum` in `train_c.py` samples time uniformly within the stage's interval. Configured time is a continuous SDE parameter; t=1 should not be read as an assertion of mathematically pure noise.
 
-    # Stage 3-5: Expanding noise range, reducing sparsity
-    d(t_min=0.1, t_max=1.0, n_steps=20000, sparsity=0.15),
-    d(t_min=0.07, t_max=1.0, n_steps=10000, sparsity=0.13),
-    d(t_min=0.05, t_max=1.0, n_steps=10000, sparsity=0.10),
-
-    # Stage 6-8: Low noise, minimal sparsity (fine details)
-    d(t_min=0.03, t_max=1.0, n_steps=20000, sparsity=0.08),
-    d(t_min=0.01, t_max=1.0, n_steps=20000, sparsity=0.05),
-
-    # Stage 9+: Full range, full capacity
-    d(t_min=0.0, t_max=1.0, n_steps=100000, sparsity=0.0),
-]
-```
-
----
+Stage counts, time intervals and sparsity values live in the config files. No default training schedules or checkpoint formats were changed in this refresh.
 
 ## Evaluation
 
 ```bash
 accelerate launch --multi_gpu --num_processes 4 --mixed_precision fp16 \
-    eval.py --config=configs/celeba64_uvit_small_cs.py \
-    --nnet_path=workdir/celeba64_uvit_small_cs/ckpts/200000.ckpt/nnet.pth
+  eval.py --config=configs/celeba64_uvit_small_cs.py \
+  --nnet_path=workdir/joint/ckpts/200000.ckpt/nnet.pth
 ```
 
----
+Set the checkpoint path to the actual saved file. FID depends on reference statistics, sample count and sampler; record all three. The checked-in joint config uses 2,000 evaluation samples.
 
-## Code Structure
+## Repository map
 
-```
-.
-├── train.py                    # Standard training script
-├── train_c.py                  # Curriculum learning training script
-├── libs/
-│   └── uvit.py                 # U-ViT model with sparsity masking support
-├── configs/
-│   ├── celeba64_uvit_small.py      # Baseline config
-│   └── celeba64_uvit_small_cs.py   # Curriculum + Sparsity config
-├── sde.py                      # SDE definitions and loss functions
-└── analysis_outputs/           # Analysis and visualization scripts
-```
+| Entry | Purpose |
+| --- | --- |
+| `train.py` | Standard continuous-time training |
+| `train_c.py` | Curriculum training, mask hooks and diagnostics |
+| `libs/curriculum.py` | Independently testable embedding mask and time-range validation |
+| `configs/celeba64_uvit_small*.py` | Standard, noise, joint and regularization variants |
+| `libs/uvit.py` | U-ViT backbone |
+| `sde.py`, `dpm_solver_pytorch.py` | Diffusion process and sampler |
+| `eval.py`, `tools/` | Sampling and FID |
+| `*jacobian*.py`, `visualize_*.py` | Exploratory analysis utilities |
+| `tests/`, `docs/` | Regression tests and reproduction notes |
 
----
+## Tests
 
-## Key Implementation Details
-
-### Sparsity Masking (libs/uvit.py)
-
-The embedding sparsity mask progressively activates dimensions during training:
-
-```python
-class EmbeddingSparsityMask:
-    def set_sparsity(self, sparsity_ratio):
-        # Mask = 1 for active dims, 0 for inactive
-        num_active = int(embed_dim * (1 - sparsity_ratio))
-        self.mask[:num_active] = 1.0
-        self.mask[num_active:] = 0.0
+```bash
+python -m unittest discover -s tests -v
+python -m compileall -q .
 ```
 
-### Curriculum Loss (sde.py)
+Tests assert masking, gradients, inference bypass and invalid input handling on CPU. They do not reproduce FID or validate distributed training.
 
-The curriculum training samples timesteps from a restricted range:
-
-```python
-def LSimple_curriculum(img, nnet, sde, t_min=0.0, t_max=1.0):
-    # Sample t from [t_min, t_max] instead of [0, 1]
-    t = torch.rand(batch_size) * (t_max - t_min) + t_min
-    # Standard diffusion loss
-    ...
-```
-
----
-
-## U-ViT Architecture
-
-This codebase is built on [U-ViT](https://arxiv.org/abs/2209.12152), a ViT-based backbone for diffusion models featuring:
-
-- **All inputs as tokens**: Time, condition, and noisy image patches are all treated as tokens
-- **Long skip connections**: Between shallow and deep layers for better gradient flow
-
-<img src="uvit.png" alt="U-ViT Architecture" width="400"/>
-
----
-
-## References
+## Citation and acknowledgements
 
 ```bibtex
-@inproceedings{bao2023all,
-  title={All are Worth Words: A ViT Backbone for Diffusion Models},
-  author={Bao, Fan and Nie, Shen and Xue, Kaiwen and Cao, Yue and Li, Chongxuan and Su, Hang and Zhu, Jun},
-  booktitle={CVPR},
-  year={2023}
+@inproceedings{sun2026curriculum,
+  title={A Theoretical Analysis of Curriculum Training in Diffusion Models},
+  author={Sun, Jiawei and Zhang, Shuai and Li, Hongkang and Liu, Sijia and Chen, Pin-Yu and Wang, Meng},
+  booktitle={ICML Workshop on Foundations of Deep Generative Models},
+  year={2026},
+  url={https://openreview.net/forum?id=AxbjagGhku}
 }
 ```
 
----
-
-## Acknowledgements
-
-This implementation is based on:
-- [U-ViT](https://github.com/baofff/U-ViT) - The original U-ViT codebase
-- [Extended Analytic-DPM](https://github.com/baofff/Extended-Analytic-DPM) - FID reference statistics
-- [dpm-solver](https://github.com/LuChengTHU/dpm-solver) - ODE sampler
+Built on [U-ViT](https://github.com/baofff/U-ViT), [DPM-Solver](https://github.com/LuChengTHU/dpm-solver) and [Extended Analytic-DPM](https://github.com/baofff/Extended-Analytic-DPM). Please also cite these upstream works when using their components. See [LICENSE](LICENSE).
